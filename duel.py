@@ -202,9 +202,11 @@ async def start_duel(duel_id, callback_query):
 
         await asyncio.sleep(2)
 
-        if health[challenger_id] <= 0 or health[opponent_id] <= 0:
-            winner = challenger_id if health[opponent_id] <= 0 else opponent_id
-            loser = challenger_id if winner == opponent_id else opponent_id
+        if health[challenger_id] > 0 and health[opponent_id] <= 0:
+            winner = challenger_id
+            break
+        if health[opponent_id] > 0 and health[challenger_id] <= 0:
+            winner = opponent_id
             break
 
         turn = opponent_id if turn == challenger_id else challenger_id
