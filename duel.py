@@ -1,7 +1,9 @@
 import asyncio
 import random
 import time
+from aiogram.dispatcher.filters import Command
 import aiosqlite
+from aiogram import types
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram import executor
@@ -10,7 +12,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Замените на ваш токен
-API_TOKEN = '8152607752:AAFX-Cnm_uSSLZOIFadHh__V5vapqu2LdrI'
+API_TOKEN = '8152607752:AAFhdDLKJEFKtPMCaZtS6oqgSRnf6Go1-fQ'
 DATABASE = 'database.db'  # Путь к вашей базе данных
 ALLOWED_CHAT_ID = -1002281073520
 LOD_CHAT = -1002297311385
@@ -41,7 +43,7 @@ async def start_command(message: types.Message):
         await message.answer("🔥Добро пожаловать в бота!\nВведите '/хелп' для списка доступных команд.")
 
 
-@dp.message_handler(commands=['хелп'])
+@dp.message_handler(regexp='хелп')
 async def help(message: types.Message):
     if message.chat.id != ALLOWED_CHAT_ID:
         await message.answer("❌ Извините, этот бот можно использовать только в разрешенном чате.")
@@ -49,13 +51,13 @@ async def help(message: types.Message):
         text = ("📃 Список доступных команд:\n\n"
                 "/start - Зарегистрироваться в боте.\n"
                 "/хелп - Вывести это сообщение.\n\n"
-                "/Бонус - Получить бонус (раз в 24 часа). Синонимы: \'/бонус\'.\n"
-                "/Дуэль - Пригласить игрока на дуэль. Синонимы: \'/дуэль\'.\n"
-                "/Баланс - Вывести свой баланс Kamenk-coins. Синонимы: \'/баланс\'.\n")
+                "Еб - Получить бонус (раз в 24 часа). Синонимы: \'еб\'.\n"
+                "Дуэль - Пригласить игрока на дуэль. Синонимы: \'дуэль\'.\n"
+                "Балик - Вывести свой баланс Kamenk-coins. Синонимы: \'балик\'.\n")
         await message.answer(text)
 
 
-@dp.message_handler(commands=['бонус','Бонус'])
+@dp.message_handler(regexp='Еб|еб')
 async def bonus_command(message: types.Message):
     if message.chat.id != ALLOWED_CHAT_ID:
         await message.answer("❌ Извините, этот бот можно использовать только в разрешенном чате.")
@@ -80,7 +82,7 @@ async def bonus_command(message: types.Message):
             
             await message.answer(f"🪙 Вы получили {bonus_amount} Kamenk-coins.")
 
-@dp.message_handler(commands=['дуэль','Дуэль'])
+@dp.message_handler(regexp='дуэль|Дуэль')
 async def duel_command(message: types.Message, state: FSMContext):
     if message.chat.id != ALLOWED_CHAT_ID:
         await message.answer("❌ Извините, этот бот можно использовать только в разрешенном чате.")
@@ -124,8 +126,8 @@ async def duel_command(message: types.Message, state: FSMContext):
                 return
 
             # Проверка времени последнего использования команды
-            if current_time - last_duel < 300:  # 300 секунд = 5 минут
-                remaining_time = 300 - (current_time - last_duel)
+            if current_time - last_duel < 20:  # 300 секунд = 5 минут
+                remaining_time = 20 - (current_time - last_duel)
                 await message.answer(f"❗ Вы можете использовать команду /дуэль снова через {remaining_time} секунд.")
                 return
 
@@ -202,11 +204,9 @@ async def start_duel(duel_id, callback_query):
 
         await asyncio.sleep(2)
 
-        if health[challenger_id] > 0 and health[opponent_id] <= 0:
-            winner = challenger_id
-            break
-        if health[opponent_id] > 0 and health[challenger_id] <= 0:
-            winner = opponent_id
+        if health[challenger_id] <= 0 or health[opponent_id] <= 0:
+            winner = challenger_id if health[opponent_id] <= 0 else opponent_id
+            loser = challenger_id if winner == opponent_id else opponent_id
             break
 
         turn = opponent_id if turn == challenger_id else challenger_id
@@ -215,12 +215,12 @@ async def start_duel(duel_id, callback_query):
 
 async def finish_duel(duel_id, winner_id, loser_id, bet, chat_id):
     async with aiosqlite.connect(DATABASE) as db:
-        await db.execute('UPDATE users SET coins = coins + ? WHERE id = ?', (bet, winner_id))
-        await db.execute('UPDATE users SET coins = coins - ? WHERE id = ?', (bet, loser_id))
+        await db.execute('UPDATE users SET coins = coins + ? WHERE id = ?', (bet, loser_id))
+        await db.execute('UPDATE users SET coins = coins - ? WHERE id = ?', (bet, winner_id))
         await db.execute('DELETE FROM duels WHERE id = ?', (duel_id,))
         await db.commit()
 
-        cursor = await db.execute('SELECT username FROM users WHERE id = ?', (winner_id,))
+        cursor = await db.execute('SELECT username FROM users WHERE id = ?', (loser_id,))
         winner_data = await cursor.fetchone()
         winner_username = winner_data[0] if winner_data else "Unknown User"
 
@@ -261,7 +261,7 @@ async def decline_duel(callback_query: types.CallbackQuery):
     await callback_query.answer("❌ Вы отказались от дуэли.")
 
 
-@dp.message_handler(commands=['баланс','Баланс'])
+@dp.message_handler(regexp='Балик|балик')
 async def balance_command(message: types.Message):
     if message.chat.id != ALLOWED_CHAT_ID:
         await message.answer("❌ Извините, этот бот можно использовать только в разрешенном чате.")
